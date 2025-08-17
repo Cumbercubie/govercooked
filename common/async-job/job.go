@@ -13,9 +13,9 @@ import (
 // Should have job manager to manage jobs
 
 type Job interface {
-	Execute()
-	Retry()
-	State()
+	Execute(ctx context.Context) error
+	Retry(ctx context.Context) error
+	State() JobState
 	SetRetryDurations(times []time.Duration)
 }
 
@@ -27,7 +27,7 @@ var (
 	defaultRetryTime = []time.Duration{time.Second, time.Second * 2, time.Second * 4}
 )
 
-type JobHanlder func(ctx context.Context) error
+type JobHandler func(ctx context.Context) error
 
 type JobState int
 
@@ -36,5 +36,33 @@ const (
 	StateRunning
 	StateFailed
 	StateTimeout
+	StateCompleted
 	StateRetryFailed
 )
+
+func (js JobState) String() string {
+	return [6]string{"Init", "Running", "Failed", "Timeout", "Completed", "RetryFailed"}[js]
+}
+
+type JobConfig struct {
+	Name       string
+	MaxTimeout time.Duration
+	Retries    []time.Duration
+}
+
+type job struct {
+	config     JobConfig
+	handler    JobHandler
+	state      JobState
+	retryIndex int
+	stopChan   chan bool
+}
+
+// func NewJob(handler JobHandler, option ...OptionHdl) *job {
+// 	j := job{
+// 		config:     JobConfig{MaxTimeout: defaultMaxTimeout, Retries: defaultRetryTime},
+// 		handler:    handler,
+// 		retryIndex: -1,
+// 		state: StateInit,
+// 	}
+// }
